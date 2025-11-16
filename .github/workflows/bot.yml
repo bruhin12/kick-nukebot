@@ -2,8 +2,6 @@ name: Kick Nuke Bot
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 */6 * * *"    # Restart co 6 godzin
 
 jobs:
   run-bot:
@@ -21,22 +19,19 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
+          pip install python-dotenv
           pip install -r requirements.txt
 
       - name: Create .env file
         run: |
-          echo "KICK_CLIENT_ID=${{ secrets.KICK_CLIENT_ID }}" >> $GITHUB_WORKSPACE/.env
-          echo "KICK_CLIENT_SECRET=${{ secrets.KICK_CLIENT_SECRET }}" >> $GITHUB_WORKSPACE/.env
-          echo "KICK_REDIRECT_URI=${{ secrets.KICK_REDIRECT_URI }}" >> $GITHUB_WORKSPACE/.env
-          echo "KICK_CHANNELS=${{ secrets.KICK_CHANNELS }}" >> $GITHUB_WORKSPACE/.env
-
-          echo "--- DEBUG ENV CONTENTS ---"
-          cat $GITHUB_WORKSPACE/.env
+          echo "KICK_CLIENT_ID=${{ secrets.KICK_CLIENT_ID }}" > .env
+          echo "KICK_CLIENT_SECRET=${{ secrets.KICK_CLIENT_SECRET }}" >> .env
+          echo "KICK_REDIRECT_URI=${{ secrets.KICK_REDIRECT_URI }}" >> .env
+          echo "KICK_CHANNELS=${{ secrets.KICK_CHANNELS }}" >> .env
 
       - name: Generate OAuth link
         run: |
-          echo "=== GENERATING OAUTH LINK ==="
-          python auth_bot.py --generate-link
+          python auth_bot.py
 
       - name: Run bot FOREVER
         run: |
@@ -44,6 +39,6 @@ jobs:
           while true
           do
             python nuke_bot.py
-            echo "[BOT] Restart in 5s..."
+            echo "Restart in 5s..."
             sleep 5
           done
