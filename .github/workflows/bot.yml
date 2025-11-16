@@ -2,11 +2,12 @@ name: Kick Nuke Bot
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "0 */6 * * *"    # restart co 6 godzin
 
 jobs:
   run-bot:
     runs-on: ubuntu-latest
-    timeout-minutes: 3600    # pozwala działać pełną godzinę (max GitHub)
 
     steps:
       - name: Checkout repo
@@ -22,18 +23,24 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Create .env
+      - name: Create .env file
         run: |
           echo "KICK_CLIENT_ID=${{ secrets.KICK_CLIENT_ID }}" >> .env
           echo "KICK_CLIENT_SECRET=${{ secrets.KICK_CLIENT_SECRET }}" >> .env
           echo "KICK_REDIRECT_URI=${{ secrets.KICK_REDIRECT_URI }}" >> .env
           echo "KICK_CHANNELS=${{ secrets.KICK_CHANNELS }}" >> .env
 
+      - name: Generate OAuth link
+        run: |
+          python auth_bot.py
+
       - name: Run bot FOREVER
         run: |
           echo "=== START BOT LOOP ==="
-          while true; do
+          while true
+          do
             echo "Restarting bot..."
-            python nuke_bot.py || echo "Bot crashed, restarting in 3s..."
-            sleep 3
+            python nuke_bot.py
+            echo "[BOT] Restart in 5s..."
+            sleep 5
           done
