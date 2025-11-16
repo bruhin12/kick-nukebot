@@ -32,7 +32,7 @@ jobs:
 
       - name: Generate OAuth link
         run: |
-          python auth_bot.py
+          python auth_bot.py --generate-link
 
       - name: Run bot FOREVER
         run: |
