@@ -3,7 +3,7 @@ name: Kick Nuke Bot
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 */6 * * *"
+    - cron: "0 */6 * * *"    # restart co 6 godzin
 
 jobs:
   run-bot:
@@ -32,7 +32,7 @@ jobs:
 
       - name: Debug .env
         run: |
-          echo "--- DEBUG ENV ---"
+          echo "---- DEBUG ENV ----"
           cat .env
 
       - name: Generate OAuth link
