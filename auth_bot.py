@@ -1,12 +1,8 @@
-import os
 from dotenv import load_dotenv
+import os
 
-# Ścieżka do .env w GitHub Actions
 env_path = os.path.join(os.getcwd(), ".env")
-
 print(f"[DEBUG] Loading .env from: {env_path}")
-
-# Wymuszenie wczytania .env
 load_dotenv(env_path)
 
 CLIENT_ID = os.getenv("KICK_CLIENT_ID")
@@ -33,3 +29,4 @@ def generate_oauth():
 
 if __name__ == "__main__":
     generate_oauth()
+
