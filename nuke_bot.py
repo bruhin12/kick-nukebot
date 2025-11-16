@@ -1,128 +1,153 @@
 import asyncio
 import json
-import os
-import aiohttp
+import sqlite3
 import websockets
-from curl_cffi import requests
+import aiohttp
 
-CLIENT_ID = os.getenv("KICK_CLIENT_ID")
-CLIENT_SECRET = os.getenv("KICK_CLIENT_SECRET")
-REDIRECT_URI = os.getenv("KICK_REDIRECT_URI")
-CHANNELS = [c.strip() for c in os.getenv("KICK_CHANNELS", "").split(",") if c.strip()]
+# ============================================================
+#  ŁADOWANIE TOKENÓW Z kick_tokens.db
+# ============================================================
 
-TOKEN_DB = "tokens.json"
-
-
-# ---------- TOKEN HANDLING ----------
 def load_tokens():
-    if not os.path.exists(TOKEN_DB):
-        return {}
-    with open(TOKEN_DB, "r") as f:
-        return json.load(f)
+    conn = sqlite3.connect("kick_tokens.db")
+    c = conn.cursor()
+    c.execute("SELECT access_token, refresh_token FROM tokens LIMIT 1")
+    row = c.fetchone()
+    conn.close()
 
-
-def save_tokens(tokens):
-    with open(TOKEN_DB, "w") as f:
-        json.dump(tokens, f)
-
-
-async def oauth_exchange(code: str):
-    url = "https://id.kick.com/oauth/token"
-    data = {
-        "grant_type": "authorization_code",
-        "client_id": CLIENT_ID,
-        "client_secret": CLIENT_SECRET,
-        "redirect_uri": REDIRECT_URI,
-        "code": code,
-    }
-    r = requests.post(url, data=data)
-    tokens = r.json()
-    save_tokens(tokens)
-    return tokens
-
-
-def get_valid_token():
-    tokens = load_tokens()
-    if "access_token" not in tokens:
-        return None
-    return tokens["access_token"]
-
-
-# ---------- FETCH CHATROOM ----------
-async def get_chatroom(username):
-    url = f"https://kick.com/api/v2/channels/{username}"
-
-    r = requests.get(url)
-    if "chatroom" not in r.json():
-        print("[ERROR] Kick API odmówiło dostępu! Chatroom blokowany.")
-        print(r.json())
+    if not row:
+        print("[ERROR] Brak tokenów w kick_tokens.db!")
         return None, None
 
-    info = r.json()
-    chat_id = info["chatroom"]["id"]
-    ws_url = info["chatroom"]["websocket_url"]
-    return chat_id, ws_url
+    access, refresh = row
+    return access, refresh
 
 
-# ---------- MAIN BOT LOOP ----------
-async def handle_chat(username):
-    print(f"[BOT] Pobieram chatroom: {username}")
+ACCESS_TOKEN, REFRESH_TOKEN = load_tokens()
 
-    chat_id, ws_url = await get_chatroom(username)
-    if not chat_id:
-        print("[BOT] Nie udało się pobrać chatroomu.")
-        return
+if not ACCESS_TOKEN:
+    raise SystemExit("Brak access_token — zakończono.")
 
-    print(f"[BOT] łączę WebSocket → {ws_url}")
+
+# ============================================================
+#  KONFIGURACJA BOTA
+# ============================================================
+
+CHANNEL = "lodomirxpp"         # kanał bota
+TARGET_MESSAGE = "!nuke"       # trigger
+HEADERS = {
+    "Authorization": f"Bearer {ACCESS_TOKEN}",
+    "Content-Type": "application/json"
+}
+
+
+# ============================================================
+#  POBIERANIE CHATROOM ID ORAZ URL WEBSOCKET
+# ============================================================
+
+async def fetch_chatroom_info():
+    url = f"https://kick.com/api/v2/channels/{CHANNEL}"
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as r:
+            data = await r.json()
+            try:
+                chat_id = data["chatroom"]["id"]
+                ws_url = data["chatroom"]["ws_url"]
+                print("[BOT] Chatroom ID:", chat_id)
+                print("[BOT] WebSocket URL:", ws_url)
+                return chat_id, ws_url
+            except:
+                print("[ERROR] Kick API nie zwróciło chatroom!")
+                print(data)
+                raise
+
+
+# ============================================================
+#  WYSYŁANIE WIADOMOŚCI
+# ============================================================
+
+async def send_chat_message(ws, message):
+    payload = {
+        "event": "SendMessage",
+        "data": {
+            "content": message
+        }
+    }
+    await ws.send(json.dumps(payload))
+
+
+# ============================================================
+#  FUNKCJA BANOWANIA
+# ============================================================
+
+async def ban_user(username):
+    api_url = "https://kick.com/api/v2/moderation/ban"
+
+    payload = {
+        "channel": CHANNEL,
+        "target": username,
+        "reason": "Nuke bot auto-ban"
+    }
+
+    async with aiohttp.ClientSession() as session:
+        async with session.post(api_url, headers=HEADERS, json=payload) as r:
+            try:
+                data = await r.json()
+            except:
+                data = {}
+            print(f"[BAN] {username}: {data}")
+
+
+# ============================================================
+#  GŁÓWNA PĘTLA ODBIORU WIADOMOŚCI
+# ============================================================
+
+async def run_bot():
+    chat_id, ws_url = await fetch_chatroom_info()
 
     async with websockets.connect(ws_url) as ws:
-        print(f"[BOT] Połączono z chatem: {username}")
+        print("[BOT] Połączono z WebSocket!")
+
+        await send_chat_message(ws, "Bot aktywny i gotowy! ✨")
 
         while True:
+            msg = await ws.recv()
             try:
-                message = await ws.recv()
-                data = json.loads(message)
+                data = json.loads(msg)
+            except:
+                continue
 
-                # Kick wysyła różne eventy
-                if "data" not in data:
-                    continue
+            # filtrujemy tylko wiadomości
+            if data.get("event") != "MessageSent":
+                continue
 
-                msg = data["data"]
+            username = data["data"]["sender"]["username"]
+            content = data["data"]["content"]
 
-                # tylko chat messages
-                if msg.get("type") != "message":
-                    continue
+            print(f"[CHAT] {username}: {content}")
 
-                text = msg["content"].lower()
-                user = msg["sender"]["username"]
+            # komenda nuke
+            if content.lower().startswith("!nuke "):
+                word = content.split(" ", 1)[1].strip().lower()
+                global TARGET
+                TARGET = word
+                await send_chat_message(ws, f"Nuke aktywny — cel: '{word}'")
 
-                print(f"[CHAT] {user}: {text}")
-
-                # NUKE
-                if text.startswith("!nuke "):
-                    target_text = text.replace("!nuke ", "").strip()
-                    print(f"[NUKE] Szukam: {target_text}")
-
-                    # Tu logika nukowania — placeholder
-                    print("[NUKE] (github: wykonuję nuke — placeholder)")
-
-            except Exception as e:
-                print("WebSocket error:", e)
-                await asyncio.sleep(5)
+            # automatyczny ban
+            try:
+                if TARGET and TARGET in content.lower():
+                    print(f"[NUKE] BAN: {username}")
+                    await ban_user(username)
+            except:
+                pass
 
 
-async def main():
-    print("[BOT] Start GitHub bot")
-
-    token = get_valid_token()
-    if not token:
-        print("[AUTH] Potrzebna autoryzacja Kick OAuth!")
-        print("Wygeneruj link w logach GitHub Actions i wejdź nim jako BOT.")
-        return
-
-    tasks = [asyncio.create_task(handle_chat(ch)) for ch in CHANNELS]
-    await asyncio.gather(*tasks)
-
+# ============================================================
+#  START BOTA
+# ============================================================
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    TARGET = None
+
+    print("[BOT] Start bota z tokenami kick_tokens.db")
+    asyncio.run(run_bot())
