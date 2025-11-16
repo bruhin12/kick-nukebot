@@ -3,7 +3,7 @@ name: Kick Nuke Bot
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 */6 * * *"
+    - cron: "0 */6 * * *"   
 
 jobs:
   run-bot:
@@ -23,30 +23,23 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Create .env file IN REPO FOLDER
+      - name: Create .env file IN REPO
         run: |
           echo "KICK_CLIENT_ID=${{ secrets.KICK_CLIENT_ID }}" >> $GITHUB_WORKSPACE/.env
           echo "KICK_CLIENT_SECRET=${{ secrets.KICK_CLIENT_SECRET }}" >> $GITHUB_WORKSPACE/.env
           echo "KICK_REDIRECT_URI=${{ secrets.KICK_REDIRECT_URI }}" >> $GITHUB_WORKSPACE/.env
           echo "KICK_CHANNELS=${{ secrets.KICK_CHANNELS }}" >> $GITHUB_WORKSPACE/.env
-
-      - name: Debug .env
-        run: |
-          echo "--- DEBUG ENV ---"
+          echo "--- ENV CREATED IN REPO ---"
           cat $GITHUB_WORKSPACE/.env
 
       - name: Generate OAuth link
         run: |
-          echo "=== GENERATING OAUTH LINK ==="
           python auth_bot.py
 
       - name: Run bot FOREVER
         run: |
-          echo "=== START BOT LOOP ==="
-          cd $GITHUB_WORKSPACE
           while true
           do
-            echo "[BOT] Restarting..."
             python nuke_bot.py
             echo "[BOT] Restart in 5s..."
             sleep 5
