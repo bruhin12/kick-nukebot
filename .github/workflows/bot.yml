@@ -43,9 +43,10 @@ jobs:
       - name: Run bot FOREVER
         run: |
           echo "=== START BOT LOOP ==="
+          cd $GITHUB_WORKSPACE
           while true
           do
-            echo "Restarting bot..."
+            echo "[BOT] Restarting..."
             python nuke_bot.py
             echo "[BOT] Restart in 5s..."
             sleep 5
