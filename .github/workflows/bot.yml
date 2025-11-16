@@ -6,8 +6,8 @@ on:
 jobs:
   run-bot:
     runs-on: ubuntu-latest
-    timeout-minutes: 3600    # max czas działania: 1h (GitHub limit)
-    
+    timeout-minutes: 3600    # pozwala działać pełną godzinę (max GitHub)
+
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
@@ -29,11 +29,11 @@ jobs:
           echo "KICK_REDIRECT_URI=${{ secrets.KICK_REDIRECT_URI }}" >> .env
           echo "KICK_CHANNELS=${{ secrets.KICK_CHANNELS }}" >> .env
 
-      - name: Run bot forever
+      - name: Run bot FOREVER
         run: |
           echo "=== START BOT LOOP ==="
           while true; do
             echo "Restarting bot..."
-            python nuke_bot.py || echo "Bot crashed, restarting..."
+            python nuke_bot.py || echo "Bot crashed, restarting in 3s..."
             sleep 3
           done
