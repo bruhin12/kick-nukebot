@@ -1,28 +1,13 @@
 import os
-from urllib.parse import urlencode
 
-print("[AUTH] Start generowania linku OAuth...")
+client_id = os.getenv("KICK_CLIENT_ID")
+redirect_uri = os.getenv("KICK_REDIRECT_URI")
 
-CLIENT_ID = os.getenv("KICK_CLIENT_ID")
-REDIRECT_URI = os.getenv("KICK_REDIRECT_URI")
-
-if not CLIENT_ID or not REDIRECT_URI:
-    print("[AUTH ERROR] CLIENT_ID lub REDIRECT_URI są puste!")
-    print("CLIENT_ID:", CLIENT_ID)
-    print("REDIRECT_URI:", REDIRECT_URI)
+if not client_id or not redirect_uri:
+    print("[AUTH ERROR] Brak CLIENT_ID lub REDIRECT_URI w .env!")
+    print("CLIENT_ID:", client_id)
+    print("REDIRECT_URI:", redirect_uri)
     exit(1)
 
-params = {
-    "client_id": CLIENT_ID,
-    "redirect_uri": REDIRECT_URI,
-    "response_type": "code",
-    "scope": "chat:write chat:read user:profile",
-}
-
-oauth_url = "https://kick.com/oauth/authorize?" + urlencode(params)
-
-print("\n===============================\n")
-print("[AUTH] 🔗 Twój link OAuth:")
-print(oauth_url)
-print("\n===============================\n")
-print("[AUTH] Wejdź w ten link jako BOT i zatwierdź aplikację.")
+print(f"[AUTH] OAuth URL:")
+print(f"https://kick.com/oauth/authorize?client_id={client_id}&redirect_uri={redirect_uri}&response_type=code&scope=chat:write+user:read")
