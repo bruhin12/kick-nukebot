@@ -1,153 +1,84 @@
-import asyncio
-import json
 import sqlite3
-import websockets
-import aiohttp
+import time
+import requests
+import json
 
-# ============================================================
-#  ŁADOWANIE TOKENÓW Z kick_tokens.db
-# ============================================================
+DB_PATH = "kick_tokens.db"
 
+API_CHAT_SEND = "https://kick.com/api/v2/messages/send"
+
+# === Funkcja ładowania tokenów z bazy ===
 def load_tokens():
-    conn = sqlite3.connect("kick_tokens.db")
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute("SELECT access_token, refresh_token FROM tokens LIMIT 1")
+
+    c.execute("SELECT access_token, refresh_token, expires_at, scope FROM tokens LIMIT 1")
     row = c.fetchone()
     conn.close()
 
     if not row:
-        print("[ERROR] Brak tokenów w kick_tokens.db!")
-        return None, None
+        raise Exception("❌ Brak tokenów w kick_tokens.db!")
 
-    access, refresh = row
-    return access, refresh
+    access_token, refresh_token, expires_at, scope = row
 
+    print("=== TOKENY ZAŁADOWANE ===")
+    print("access_token:", access_token[:20] + "...")
+    print("refresh_token:", refresh_token[:20] + "...")
+    print("expires_at:", expires_at)
+    print("scope:", scope)
 
-ACCESS_TOKEN, REFRESH_TOKEN = load_tokens()
-
-if not ACCESS_TOKEN:
-    raise SystemExit("Brak access_token — zakończono.")
-
-
-# ============================================================
-#  KONFIGURACJA BOTA
-# ============================================================
-
-CHANNEL = "lodomirxpp"         # kanał bota
-TARGET_MESSAGE = "!nuke"       # trigger
-HEADERS = {
-    "Authorization": f"Bearer {ACCESS_TOKEN}",
-    "Content-Type": "application/json"
-}
-
-
-# ============================================================
-#  POBIERANIE CHATROOM ID ORAZ URL WEBSOCKET
-# ============================================================
-
-async def fetch_chatroom_info():
-    url = f"https://kick.com/api/v2/channels/{CHANNEL}"
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url) as r:
-            data = await r.json()
-            try:
-                chat_id = data["chatroom"]["id"]
-                ws_url = data["chatroom"]["ws_url"]
-                print("[BOT] Chatroom ID:", chat_id)
-                print("[BOT] WebSocket URL:", ws_url)
-                return chat_id, ws_url
-            except:
-                print("[ERROR] Kick API nie zwróciło chatroom!")
-                print(data)
-                raise
-
-
-# ============================================================
-#  WYSYŁANIE WIADOMOŚCI
-# ============================================================
-
-async def send_chat_message(ws, message):
-    payload = {
-        "event": "SendMessage",
-        "data": {
-            "content": message
-        }
-    }
-    await ws.send(json.dumps(payload))
-
-
-# ============================================================
-#  FUNKCJA BANOWANIA
-# ============================================================
-
-async def ban_user(username):
-    api_url = "https://kick.com/api/v2/moderation/ban"
-
-    payload = {
-        "channel": CHANNEL,
-        "target": username,
-        "reason": "Nuke bot auto-ban"
+    return {
+        "access": access_token,
+        "refresh": refresh_token,
+        "expires": expires_at,
+        "scope": scope,
     }
 
-    async with aiohttp.ClientSession() as session:
-        async with session.post(api_url, headers=HEADERS, json=payload) as r:
-            try:
-                data = await r.json()
-            except:
-                data = {}
-            print(f"[BAN] {username}: {data}")
+
+# === Funkcja odświeżania tokena (jeśli masz CLIENT_SECRET) ===
+def refresh_token(data):
+    print("⚠ Refresh token przepuszczony — używamy stałych tokenów!")
+    return data["access"]
 
 
-# ============================================================
-#  GŁÓWNA PĘTLA ODBIORU WIADOMOŚCI
-# ============================================================
+# === Funkcja wysyłania wiadomości do czatu ===
+def send_message(channel_id, msg, token):
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
 
-async def run_bot():
-    chat_id, ws_url = await fetch_chatroom_info()
+    payload = {
+        "channel_id": int(channel_id),
+        "content": msg
+    }
 
-    async with websockets.connect(ws_url) as ws:
-        print("[BOT] Połączono z WebSocket!")
+    r = requests.post(API_CHAT_SEND, json=payload, headers=headers)
 
-        await send_chat_message(ws, "Bot aktywny i gotowy! ✨")
-
-        while True:
-            msg = await ws.recv()
-            try:
-                data = json.loads(msg)
-            except:
-                continue
-
-            # filtrujemy tylko wiadomości
-            if data.get("event") != "MessageSent":
-                continue
-
-            username = data["data"]["sender"]["username"]
-            content = data["data"]["content"]
-
-            print(f"[CHAT] {username}: {content}")
-
-            # komenda nuke
-            if content.lower().startswith("!nuke "):
-                word = content.split(" ", 1)[1].strip().lower()
-                global TARGET
-                TARGET = word
-                await send_chat_message(ws, f"Nuke aktywny — cel: '{word}'")
-
-            # automatyczny ban
-            try:
-                if TARGET and TARGET in content.lower():
-                    print(f"[NUKE] BAN: {username}")
-                    await ban_user(username)
-            except:
-                pass
+    print(">> Chat response:", r.status_code, r.text)
+    return r.status_code == 200
 
 
-# ============================================================
-#  START BOTA
-# ============================================================
+# === GŁÓWNY BOT ===
+def main():
+    print("[BOT] Start GitHub bot")
+
+    try:
+        tokens = load_tokens()
+    except Exception as e:
+        print("Error:", e)
+        exit(1)
+
+    token = tokens["access"]
+
+    CHANNEL_ID = YOUR_CHANNEL_ID_HERE   # <<< WPISZ ID KANAŁU
+
+    print("[BOT] Bot działający. Piszę co 10 sek...")
+
+    while True:
+        send_message(CHANNEL_ID, "Bot działa ✔", token)
+        time.sleep(10)
+
 
 if __name__ == "__main__":
-    TARGET = None
-
-    print("[BOT] Start bota z tokenami kick_tokens.db")
-    asyncio.run(run_bot())
+    main()
