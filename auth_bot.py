@@ -23,8 +23,16 @@ params = {
     "scope": "user:read chat:read chat:write moderation:write events:subscribe"
 }
 
-oauth_url = "https://accounts.kick.com/oauth2/authorize?" + urlencode(params)
+oauth_url = (
+    "https://accounts.kick.com/oauth2/authorize"
+    f"?response_type=code"
+    f"&client_id={CLIENT_ID}"
+    f"&redirect_uri={REDIRECT_URI}"
+    f"&scope=user:read chat:read chat:write moderation:write events:subscribe"
+)
+
 
 print("=== TWÓJ LINK OAUTH ===")
 print(oauth_url)
 print("WEJDŹ W TEN LINK JAKO BOT!")
+
