@@ -1,10 +1,9 @@
 import os
+import urllib.parse
 from dotenv import load_dotenv
 
-# Wymuszamy ładowanie .env z katalogu głównego repo
 env_path = os.path.join(os.getcwd(), ".env")
 print(f"[DEBUG] Loading .env from: {env_path}")
-
 load_dotenv(env_path)
 
 CLIENT_ID = os.getenv("KICK_CLIENT_ID")
@@ -17,15 +16,22 @@ if not CLIENT_ID or not REDIRECT_URI:
     print("[AUTH ERROR] Brak CLIENT_ID lub REDIRECT_URI w .env!")
     exit(1)
 
-# GENERUJEMY POPRAWNY LINK AUTH
-url = (
-    f"https://kick.com/oauth/authorize"
-    f"?client_id={CLIENT_ID}"
-    f"&redirect_uri={REDIRECT_URI}"
-    f"&response_type=code"
-    f"&scope=chat:write chat:read"
+# kodowanie redirect_uri
+redirect_encoded = urllib.parse.quote(REDIRECT_URI, safe='')
+
+# SCOPES
+scopes = "user:read chat:read chat:write moderation:write events:subscribe"
+scopes_encoded = urllib.parse.quote(scopes, safe='')
+
+# NOWY poprawny URL autoryzacji
+auth_url = (
+    f"https://id.kick.com/oauth/authorize?"
+    f"response_type=code&"
+    f"client_id={CLIENT_ID}&"
+    f"redirect_uri={redirect_encoded}&"
+    f"scope={scopes_encoded}"
 )
 
-print("\n=== TWÓJ LINK OAUTH ===")
-print(url)
-print("\nWEJDŹ W TEN LINK JAKO BOT!")
+print("=== TWÓJ LINK OAUTH ===")
+print(auth_url)
+print("WEJDŹ W TEN LINK JAKO BOT!")
