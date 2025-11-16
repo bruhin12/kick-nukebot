@@ -2,16 +2,13 @@ name: Kick Nuke Bot
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 */6 * * *"    # co 6 godzin
 
 jobs:
   run-bot:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
       - name: Setup Python
         uses: actions/setup-python@v4
@@ -23,19 +20,23 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Create .env file
+      - name: Create .env
         run: |
-          echo "KICK_CLIENT_ID=${{ secrets.KICK_CLIENT_ID }}" >> .env
-          echo "KICK_CLIENT_SECRET=${{ secrets.KICK_CLIENT_SECRET }}" >> .env
-          echo "KICK_REDIRECT_URI=${{ secrets.KICK_REDIRECT_URI }}" >> .env
-          echo "KICK_CHANNELS=${{ secrets.KICK_CHANNELS }}" >> .env
+          echo "KICK_CLIENT_ID=01KA74G87R28Q8WV5VRN1R5HGH" >> .env
+          echo "KICK_CLIENT_SECRET=3b6818ae5c89a9477b332f560b7958982ba668b31cc5647e2da4b29d08903253" >> .env
+          echo "KICK_REDIRECT_URI=http://127.0.0.1.nip.io/callback" >> .env
+          echo "KICK_CHANNELS=bruhin" >> .env
+
+      - name: Generate OAuth link
+        run: |
+          python auth_bot.py
 
       - name: Run bot FOREVER
         run: |
           echo "=== START BOT LOOP ==="
           while true
           do
-            python nuke_bot.py
+            python nuke_bot.py || true
             echo "[BOT] Restart in 5s..."
             sleep 5
           done
