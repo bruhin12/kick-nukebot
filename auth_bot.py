@@ -1,8 +1,8 @@
 import os
+from urllib.parse import urlencode
 from dotenv import load_dotenv
-from urllib.parse import quote
 
-# 🔧 Wymuszenie poprawnej ścieżki do .env
+# Wymuszenie ścieżki .env
 env_path = os.path.join(os.getcwd(), ".env")
 print(f"[DEBUG] Loading .env from: {env_path}")
 load_dotenv(env_path)
@@ -10,22 +10,25 @@ load_dotenv(env_path)
 CLIENT_ID = os.getenv("KICK_CLIENT_ID")
 REDIRECT_URI = os.getenv("KICK_REDIRECT_URI")
 
-print("CLIENT_ID:", CLIENT_ID)
-print("REDIRECT_URI:", REDIRECT_URI)
+print(f"CLIENT_ID: {CLIENT_ID}")
+print(f"REDIRECT_URI: {REDIRECT_URI}")
 
 if not CLIENT_ID or not REDIRECT_URI:
     print("[AUTH ERROR] Brak CLIENT_ID lub REDIRECT_URI w .env!")
     exit(1)
 
-# 🔥 UWAGA: poprawny endpoint OAuth Kick
-OAUTH_URL = (
-    "https://id.kick.com/oauth/authorize"
-    "?response_type=code"
-    f"&client_id={quote(CLIENT_ID)}"
-    f"&redirect_uri={quote(REDIRECT_URI)}"
-    "&scope=user:read chat:read chat:write moderation:write events:subscribe"
-)
+# Kick OAuth endpoint – JEDYNY poprawny
+OAUTH_URL = "https://id.kick.com/oauth/authorize"
 
-print("=== TWÓJ POPRAWNY LINK OAUTH ===")
-print(OAUTH_URL)
+params = {
+    "response_type": "code",
+    "client_id": CLIENT_ID,
+    "redirect_uri": REDIRECT_URI,
+    "scope": "user:read chat:read chat:write moderation:write events:subscribe"
+}
+
+final_url = f"{OAUTH_URL}?{urlencode(params)}"
+
+print("=== TWÓJ LINK OAUTH ===")
+print(final_url)
 print("WEJDŹ W TEN LINK JAKO BOT!")
