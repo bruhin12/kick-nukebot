@@ -3,7 +3,7 @@ name: Kick Nuke Bot
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 */6 * * *"
+    - cron: "0 */6 * * *"    # restart co 6 godzin
 
 jobs:
   run-bot:
@@ -30,10 +30,14 @@ jobs:
           echo "KICK_REDIRECT_URI=${{ secrets.KICK_REDIRECT_URI }}" >> .env
           echo "KICK_CHANNELS=${{ secrets.KICK_CHANNELS }}" >> .env
 
+          echo "--- DEBUG ENV ---"
+          cat .env
+          echo "------------------"
+
       - name: Generate OAuth link
         run: |
           echo "=== GENERATING OAUTH LINK ==="
-          python auth_bot.py --generate-link
+          python auth_bot.py --generate
 
       - name: Run bot FOREVER
         run: |
@@ -41,6 +45,5 @@ jobs:
           while true
           do
             python nuke_bot.py
-            echo "[BOT] Restart in 5s..."
             sleep 5
           done
